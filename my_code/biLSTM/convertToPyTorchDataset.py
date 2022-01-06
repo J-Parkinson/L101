@@ -9,7 +9,7 @@ from my_code.wordEmbeddings.word_embeddings import convertDataToWordVectors
 from my_code.load_and_tokenize.preprocess_genspam import loadGenspam
 from my_code.load_and_tokenize.preprocess_lingspam import loadLingspam
 from my_code.load_and_tokenize.preprocess_sms_spam import loadSMSSpam
-from my_code.helpers.datasets import Datasets
+from my_code.helpers.datasplit import DataSplit
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print(f'Using {device} device')
@@ -40,7 +40,7 @@ def splitIntoSentencesAndPad(*argv, restrictLength=None):
     return argv
 
 
-def pyTorchDataset(data, name='', deviceToUse=device):
+def pyTorchDataset(data, name='', deviceToUse=device, shuffle=True):
     print(f'converting {name}to pyTorch')
     sequenceData = np.array(list(map(lambda x: np.array(x), data['sequence'].to_numpy())))
     typeData = np.array(data['type'].to_numpy(), dtype='uint8')
@@ -50,7 +50,7 @@ def pyTorchDataset(data, name='', deviceToUse=device):
     dataOutput = tensor(typeData).to(deviceToUse, dtype=torch.float)
     print('Loaded into CUDA')
     train = TensorDataset(dataInput, dataOutput)
-    train_loader = DataLoader(train, batch_size=32, shuffle=True)
+    train_loader = DataLoader(train, batch_size=32, shuffle=shuffle)
     return train_loader
 
 with open('../wordEmbeddings/genspam_test', 'rb') as genspam_test:
@@ -60,10 +60,15 @@ with open('../wordEmbeddings/genspam_test', 'rb') as genspam_test:
 print('Loaded custom words')
 
 #(number of sentences) x (padded sentence length) x (embedding length = 300)
-def loadSMSSpamPyTorch(deviceToUse=device):
-    smstrn = loadSMSSpam(Datasets.train)
-    smsdev = loadSMSSpam(Datasets.dev)
-    smstst = loadSMSSpam(Datasets.test)
+def loadSMSSpamPyTorch(deviceToUse=device, shuffle=True, pytorchOnly=True):
+    smstrn = loadSMSSpam(DataSplit.train)
+    smsdev = loadSMSSpam(DataSplit.dev)
+    smstst = loadSMSSpam(DataSplit.test)
+
+    smstrn['sequenceOriginal'] = smstrn['sequence']
+    smsdev['sequenceOriginal'] = smsdev['sequence']
+    smstst['sequenceOriginal'] = smstst['sequence']
+
     smstrn, smsdev, smstst = splitIntoSentencesAndPad(smstrn, smsdev, smstst)
     print('Loaded sms')
 
@@ -88,20 +93,30 @@ def loadSMSSpamPyTorch(deviceToUse=device):
     smsdev['sequence'] = smsdev.apply(lambda row: np.concatenate((row['sequenceVector'], row['sequenceGlove']), axis=1), axis=1)
     smstst['sequence'] = smstst.apply(lambda row: np.concatenate((row['sequenceVector'], row['sequenceGlove']), axis=1), axis=1)
 
-    smstrn = pyTorchDataset(smstrn, 'smstrn ', deviceToUse=deviceToUse)
-    smsdev = pyTorchDataset(smsdev, 'smsdev ', deviceToUse=deviceToUse)
-    smstst = pyTorchDataset(smstst, 'smstst ', deviceToUse=deviceToUse)
+    smstrnPT = pyTorchDataset(smstrn, 'smstrn ', deviceToUse=deviceToUse, shuffle=shuffle)
+    smsdevPT = pyTorchDataset(smsdev, 'smsdev ', deviceToUse=deviceToUse, shuffle=shuffle)
+    smststPT = pyTorchDataset(smstst, 'smstst ', deviceToUse=deviceToUse, shuffle=shuffle)
 
-    return {Datasets.train: smstrn, Datasets.dev: smsdev, Datasets.test: smstst, 'weight': weight, 'words': words}
+    if pytorchOnly:
+        return {DataSplit.train: smstrnPT, DataSplit.dev: smsdevPT, DataSplit.test: smststPT, 'weight': weight, 'words': words}
+    else:
+        return ({DataSplit.train: smstrnPT, DataSplit.dev: smsdevPT, DataSplit.test: smststPT, 'weight': weight,
+                'words': words}, {DataSplit.train: smstrn, DataSplit.dev: smsdev, DataSplit.test: smstst, 'weight': weight, 'words': words})
 
-def loadLingspamPyTorch(restrictLength=300, deviceToUse=device):
-    lsmtrn = loadLingspam(Datasets.train)
-    lsmdev = loadLingspam(Datasets.dev)
-    lsmtst = loadLingspam(Datasets.test)
+def loadLingspamPyTorch(restrictLength=300, deviceToUse=device, shuffle=True, pytorchOnly=True):
+    lsmtrn = loadLingspam(DataSplit.train)
+    lsmdev = loadLingspam(DataSplit.dev)
+    lsmtst = loadLingspam(DataSplit.test)
+
+    lsmtrn['sequenceOriginal'] = lsmtrn['sequence']
+    lsmdev['sequenceOriginal'] = lsmdev['sequence']
+    lsmtst['sequenceOriginal'] = lsmtst['sequence']
+
     lsmtrn, lsmdev, lsmtst = splitIntoSentencesAndPad(lsmtrn, lsmdev, lsmtst, restrictLength=restrictLength)
     print('Loaded ling')
 
     weight = tensor(biasesForLossFunctionUnbalanced(lsmtrn, lsmdev, lsmtst)).to(deviceToUse, dtype=torch.float)
+    words = len(lsmtrn['sequence'][0])
 
     lsmtrn, _ = convertDataToWordVectors(lsmtrn, customWords, 'lingspam_train', columnName='sequenceVector')
     print('lingspam_train done')
@@ -110,20 +125,48 @@ def loadLingspamPyTorch(restrictLength=300, deviceToUse=device):
     lsmtst, _ = convertDataToWordVectors(lsmtst, customWords, 'lingspam_test', columnName='sequenceVector')
     print('lingspam_test done')
 
-    lsmtrn = pyTorchDataset(lsmtrn, 'lsmtrn ', deviceToUse=deviceToUse)
-    lsmdev = pyTorchDataset(lsmdev, 'lsmdev ', deviceToUse=deviceToUse)
-    lsmtst = pyTorchDataset(lsmtst, 'lsmtst ', deviceToUse=deviceToUse)
+    lsmtrn = addGloveVectors(lsmtrn, 'lingspam_train')
+    print('lingspam_train glove done')
+    lsmdev = addGloveVectors(lsmdev, 'lingspam_dev')
+    print('lingspam_dev glove done')
+    lsmtst = addGloveVectors(lsmtst, 'lingspam_test')
+    print('lingspam_test glove done')
 
-    return {Datasets.train: lsmtrn, Datasets.dev: lsmdev, Datasets.test: lsmtst, 'weight': weight}
+    lsmtrn['sequence'] = lsmtrn.apply(lambda row: np.concatenate((row['sequenceVector'], row['sequenceGlove']), axis=1),
+                                      axis=1)
+    lsmdev['sequence'] = lsmdev.apply(lambda row: np.concatenate((row['sequenceVector'], row['sequenceGlove']), axis=1),
+                                      axis=1)
+    lsmtst['sequence'] = lsmtst.apply(lambda row: np.concatenate((row['sequenceVector'], row['sequenceGlove']), axis=1),
+                                      axis=1)
 
-def loadGenspamPyTorch(restrictLength=175, deviceToUse=device):
-    gsmtrn = loadGenspam(Datasets.train)
-    gsmdev = loadGenspam(Datasets.dev)
-    gsmtst = loadGenspam(Datasets.test)
+    lsmtrnPT = pyTorchDataset(lsmtrn, 'lsmtrn ', deviceToUse=deviceToUse, shuffle=shuffle)
+    lsmdevPT = pyTorchDataset(lsmdev, 'lsmdev ', deviceToUse=deviceToUse, shuffle=shuffle)
+    lsmtstPT = pyTorchDataset(lsmtst, 'lsmtst ', deviceToUse=deviceToUse, shuffle=shuffle)
+
+    if pytorchOnly:
+        return {DataSplit.train: lsmtrnPT, DataSplit.dev: lsmdevPT, DataSplit.test: lsmtstPT, 'weight': weight, 'words': words}
+    else:
+        return ({DataSplit.train: lsmtrnPT, DataSplit.dev: lsmdevPT, DataSplit.test: lsmtstPT, 'weight': weight, 'words': words},
+                {DataSplit.train: lsmtrn, DataSplit.dev: lsmdev, DataSplit.test: lsmtst, 'weight': weight,
+                 'words': words})
+
+def loadGenspamPyTorch(restrictLength=175, deviceToUse=device, shuffle=True, pytorchOnly=True):
+    gsmtrn = loadGenspam(DataSplit.train)
+    gsmdev = loadGenspam(DataSplit.dev)
+    gsmtst = loadGenspam(DataSplit.test)
+
+    gsmtrn = gsmtrn[:len(gsmtrn) // 2]
+    gsmdev = gsmdev[:len(gsmdev) // 2]
+
+    gsmtrn['sequenceOriginal'] = gsmtrn['sequence']
+    gsmdev['sequenceOriginal'] = gsmdev['sequence']
+    gsmtst['sequenceOriginal'] = gsmtst['sequence']
+
     gsmtrn, gsmdev, gsmtst = splitIntoSentencesAndPad(gsmtrn, gsmdev, gsmtst, restrictLength=restrictLength)
     print('Loaded gen')
 
     weight = tensor(biasesForLossFunctionUnbalanced(gsmtrn, gsmdev, gsmtst)).to(deviceToUse, dtype=torch.float)
+    words = len(gsmtrn['sequence'][0])
 
     gsmtrn, _ = convertDataToWordVectors(gsmtrn, customWords, 'genspam_train', columnName='sequenceVector')
     print('genspam_train done')
@@ -132,10 +175,28 @@ def loadGenspamPyTorch(restrictLength=175, deviceToUse=device):
     gsmtst, _ = convertDataToWordVectors(gsmtst, customWords, 'genspam_test', columnName='sequenceVector')
     print('genspam_test done')
 
-    gsmtrn = pyTorchDataset(gsmtrn, 'gsmtrn ', deviceToUse=deviceToUse)
-    gsmdev = pyTorchDataset(gsmdev, 'gsmdev ', deviceToUse=deviceToUse)
-    gsmtst = pyTorchDataset(gsmtst, 'gsmtst ', deviceToUse=deviceToUse)
+    gsmtrn = addGloveVectors(gsmtrn, 'genspam_train')
+    print('genspam_train glove done')
+    gsmdev = addGloveVectors(gsmdev, 'genspam_dev')
+    print('genspam_dev glove done')
+    gsmtst = addGloveVectors(gsmtst, 'genspam_test')
+    print('genspam_test glove done')
 
-    return {Datasets.train: gsmtrn, Datasets.dev: gsmdev, Datasets.test: gsmtst, 'weight': weight}
+    gsmtrn['sequence'] = gsmtrn.apply(lambda row: np.concatenate((row['sequenceVector'], row['sequenceGlove']), axis=1),
+                                      axis=1)
+    gsmdev['sequence'] = gsmdev.apply(lambda row: np.concatenate((row['sequenceVector'], row['sequenceGlove']), axis=1),
+                                      axis=1)
+    gsmtst['sequence'] = gsmtst.apply(lambda row: np.concatenate((row['sequenceVector'], row['sequenceGlove']), axis=1),
+                                      axis=1)
 
-trainingData = loadSMSSpamPyTorch()
+    gsmtrnPT = pyTorchDataset(gsmtrn, 'gsmtrn ', deviceToUse=deviceToUse, shuffle=shuffle)
+    gsmdevPT = pyTorchDataset(gsmdev, 'gsmdev ', deviceToUse=deviceToUse, shuffle=shuffle)
+    gsmtstPT = pyTorchDataset(gsmtst, 'gsmtst ', deviceToUse=deviceToUse, shuffle=shuffle)
+
+    if pytorchOnly:
+        return {DataSplit.train: gsmtrnPT, DataSplit.dev: gsmdevPT, DataSplit.test: gsmtstPT, 'weight': weight, 'words': words}
+    else:
+        return ({DataSplit.train: gsmtrnPT, DataSplit.dev: gsmdevPT, DataSplit.test: gsmtstPT, 'weight': weight, 'words': words},
+                {DataSplit.train: gsmtrn, DataSplit.dev: gsmdev, DataSplit.test: gsmtst, 'weight': weight,
+                 'words': words})
+#trainingData = loadSMSSpamPyTorch()

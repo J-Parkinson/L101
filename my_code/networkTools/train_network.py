@@ -5,12 +5,15 @@ from torch import nn
 from torch.utils.tensorboard import SummaryWriter
 import torch
 
-from my_code.CNN_LSTM.convertToPyTorchDataset import loadSMSSpamPyTorch, loadGenspamPyTorch, loadLingspamPyTorch
+from my_code.CNN_LSTM.convertToPyTorchDataset import loadSMSSpamPyTorch as SSCLSMS, loadGenspamPyTorch as SSCLGenspam, loadLingspamPyTorch as SSCLLingspam
 from my_code.CNN_LSTM.network import SSCL
+from my_code.CNN_LSTM.network_ADAPTED import SSCLAdapted
+from my_code.biLSTM.convertToPyTorchDataset import loadSMSSpamPyTorch as BiLSTMSMS, loadGenspamPyTorch as BiLSTMGenspam, loadLingspamPyTorch as BiLSTMLingspam
+from my_code.biLSTM.network import BiLSTM
 
 #Cobbled together from https://pytorch.org/tutorials/beginner/introyt/trainingyt.html
 #hence the intentional mismatch in variable name formats
-from my_code.helpers.datasets import Datasets
+from my_code.helpers.datasplit import DataSplit
 
 
 def trainOneEpoch(trainingLoader, model, optimizer, lossFunction, epoch_index, tb_writer):
@@ -50,7 +53,7 @@ def trainOneEpoch(trainingLoader, model, optimizer, lossFunction, epoch_index, t
     return lastLoss
 
 
-def trainNetwork(trainingLoader, validationLoader, model, weight, EPOCHS=30, location=""):
+def trainNetwork(trainingLoader, validationLoader, model, weight, EPOCHS=15, location=""):
     #print(weight)
     # binary loss function
     lossFunction = nn.BCELoss(weight=weight)
@@ -108,13 +111,33 @@ def trainNetwork(trainingLoader, validationLoader, model, weight, EPOCHS=30, loc
     return best_model
 
 
-def trainSSCL(data):
+def trainSSCL(data, loc='_'):
     numberWords = data['words']
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f'Using {device} device')
     model = SSCL(numberWords).to(device)
     print(f'Loaded model with {numberWords} words')
-    for _ in range(3):
-        trainNetwork(data[Datasets.train], data[Datasets.dev], model, data['weight'], location='')
+    model = trainNetwork(data[DataSplit.train], data[DataSplit.dev], model, data['weight'], location=f'{loc}')
+    return model
 
-trainSSCL(loadSMSSpamPyTorch())
+def trainSSCLAdapted(data, loc='_'):
+    numberWords = data['words']
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f'Using {device} device')
+    model = SSCLAdapted(numberWords).to(device)
+    print(f'Loaded model with {numberWords} words')
+    model = trainNetwork(data[DataSplit.train], data[DataSplit.dev], model, data['weight'], location=f'{loc}')
+    return model
+
+def trainBiLSTM(data, loc='_'):
+    numberWords = data['words']
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    print(f'Using {device} device')
+    model = BiLSTM(numberWords).to(device)
+    print(f'Loaded model with {numberWords} words')
+    model = trainNetwork(data[DataSplit.train], data[DataSplit.dev], model, data['weight'], location=f'{loc}')
+    return model
+
+#trainSSCL(SSCLSMS(), '_SMS')
+#trainSSCLAdapted(SSCLSMS(), '_SMS')
+#trainBiLSTM(BiLSTMSMS(), '_SMS')

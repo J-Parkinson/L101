@@ -33,7 +33,7 @@ class SSCL(nn.Module):
         xConvReshape = xConv.squeeze()
         #print(xConvReshape.shape)
         xLSTM = self.lstm(xConvReshape)
-        xLSTMFinal = xLSTM[0].squeeze()[:, -1]
+        xLSTMFinal = xLSTM[1][1].squeeze()[:, -1]
         xSoftmaxed = self.softmax(xLSTMFinal)
         return xSoftmaxed
 

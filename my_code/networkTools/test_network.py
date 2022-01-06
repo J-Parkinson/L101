@@ -1,7 +1,17 @@
 import torch
-from my_code.CNN_LSTM.convertToPyTorchDataset import loadSMSSpamPyTorch, loadGenspamPyTorch, loadLingspamPyTorch
+
+from my_code.CNN_LSTM.convertToPyTorchDataset import loadSMSSpamPyTorch as SSCLSMS, loadGenspamPyTorch as SSCLGenspam, loadLingspamPyTorch as SSCLLingspam
 from my_code.CNN_LSTM.network import SSCL
-from my_code.helpers.datasets import Datasets
+from my_code.CNN_LSTM.network_ADAPTED import SSCLAdapted
+from my_code.biLSTM.convertToPyTorchDataset import loadSMSSpamPyTorch as BiLSTMSMS, loadGenspamPyTorch as BiLSTMGenspam, loadLingspamPyTorch as BiLSTMLingspam
+from my_code.biLSTM.network import BiLSTM
+
+from my_code.helpers.datasplit import DataSplit
+
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+print(f'Using {device} device')
+
+import numpy as np
 
 def safeDivision(a,b):
     return a/b if b else 0
@@ -13,6 +23,8 @@ def testModel(model, dataLoader):
     FP = 0
     FN = 0
 
+    allPredicted = torch.tensor([]).to(device, dtype=torch.float)
+
     # since we're not training, we don't need to calculate the gradients for our outputs
     with torch.no_grad():
         for data in dataLoader:
@@ -21,6 +33,7 @@ def testModel(model, dataLoader):
             outputs = model(sentences)
             # the class with the highest energy is what we choose as prediction
             predicted = torch.round(outputs.data)
+            allPredicted = torch.concat((allPredicted, predicted))
             TP += torch.sum(torch.logical_and(actual, predicted)).item()
             FP += torch.sum(torch.logical_and(torch.logical_not(actual), predicted)).item()
             TN += torch.sum(torch.logical_and(torch.logical_not(actual), torch.logical_not(predicted))).item()
@@ -50,17 +63,19 @@ def testModel(model, dataLoader):
     print(f'accuracy   :{accuracy}')
     print(f'F1         :{F1}')
 
+    return np.array([TP, FP, TN, FN, recall, selectivity, precision, NPV, accuracy, F1]), allPredicted
+
 
 def loadNetwork(location, model):
     model.load_state_dict(torch.load(location))
     model.eval()
     return model
 
-data = loadSMSSpamPyTorch(deviceToUse='cpu')
-dataToUse = data[Datasets.test]
-noWords = data['words']
+#data = SSCLSMS(deviceToUse='cpu')
+#dataToUse = data[DataSplit.test]
+#noWords = data['words']
 
-networkToTest = loadNetwork('models/model_20220103_073318', SSCL(noWords))
-print('Model initialised')
+#networkToTest = loadNetwork('models/SSCLA_SMSmodel_20220104_144633', SSCLAdapted(noWords))
+#print('Model initialised')
 
-testModel(networkToTest, dataToUse)
+#testModel(networkToTest, dataToUse)

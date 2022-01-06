@@ -2,13 +2,13 @@ from sklearn.svm import SVC
 import pickle
 
 from my_code.SVM.SVM_preprocess import loadSMSSpamSVM, loadGenspamSVM, loadLingspamSVM
-from my_code.helpers.datasets import Datasets
+from my_code.helpers.datasplit import DataSplit
 
 cSMS = 1
 gammaSMS = 0.0000001
 
 def trainSVM(data, save=None):
-    trainData = data[Datasets.train]
+    trainData = data[DataSplit.train]
     weight = data['weight']
     outputs = list(trainData['type'].to_numpy())
     sequences = list(trainData['sequence'].to_numpy())

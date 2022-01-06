@@ -2,7 +2,7 @@ from sklearn.svm import SVC
 import pickle
 
 from my_code.SVM.SVM_preprocess import loadSMSSpamSVM, loadGenspamSVM, loadLingspamSVM
-from my_code.helpers.datasets import Datasets
+from my_code.helpers.datasplit import DataSplit
 import numpy as np
 
 cSMS = 1
@@ -25,7 +25,7 @@ def testModel(data, svm):
     FN = 0
 
     # since we're not training, we don't need to calculate the gradients for our outputs
-    trainData = data[Datasets.test]
+    trainData = data[DataSplit.test]
     actual = list(trainData['type'].to_numpy())
     sentences = list(trainData['sequence'].to_numpy())
     # calculate outputs by running images through the network

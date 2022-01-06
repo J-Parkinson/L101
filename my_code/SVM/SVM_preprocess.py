@@ -1,7 +1,7 @@
 import pandas as pd
 
 from my_code.CNN_LSTM.convertToPyTorchDataset import splitIntoSentencesAndPad, biasesForLossFunctionUnbalanced
-from my_code.helpers.datasets import Datasets
+from my_code.helpers.datasplit import DataSplit
 from my_code.load_and_tokenize.preprocess_genspam import loadGenspam
 from my_code.load_and_tokenize.preprocess_lingspam import loadLingspam
 from my_code.load_and_tokenize.preprocess_sms_spam import loadSMSSpam
@@ -20,9 +20,9 @@ def convertDataToIndices(*data):
 #(number of sentences) x (padded sentence length)
 # We DO NOT use embeddings here. The padded sentence length * 300 would give us an inordinate amount of dimensions to solve SVM over, and instead hence we use simple indices.
 def loadSMSSpamSVM():
-    smstrn = loadSMSSpam(Datasets.train)
-    smsdev = loadSMSSpam(Datasets.dev)
-    smstst = loadSMSSpam(Datasets.test)
+    smstrn = loadSMSSpam(DataSplit.train)
+    smsdev = loadSMSSpam(DataSplit.dev)
+    smstst = loadSMSSpam(DataSplit.test)
     smstrn, smsdev, smstst = splitIntoSentencesAndPad(smstrn, smsdev, smstst)
     print('Loaded sms')
 
@@ -30,12 +30,12 @@ def loadSMSSpamSVM():
 
     smstrn, smsdev, smstst = convertDataToIndices(smstrn, smsdev, smstst)
 
-    return {Datasets.train: smstrn, Datasets.dev: smsdev, Datasets.test: smstst, 'weight': weight}
+    return {DataSplit.train: smstrn, DataSplit.dev: smsdev, DataSplit.test: smstst, 'weight': weight}
 
 def loadLingspamSVM(restrictLength=300):
-    lsmtrn = loadLingspam(Datasets.train)
-    lsmdev = loadLingspam(Datasets.dev)
-    lsmtst = loadLingspam(Datasets.test)
+    lsmtrn = loadLingspam(DataSplit.train)
+    lsmdev = loadLingspam(DataSplit.dev)
+    lsmtst = loadLingspam(DataSplit.test)
     lsmtrn, lsmdev, lsmtst = splitIntoSentencesAndPad(lsmtrn, lsmdev, lsmtst, restrictLength=restrictLength)
     print('Loaded ling')
 
@@ -43,12 +43,12 @@ def loadLingspamSVM(restrictLength=300):
 
     lsmtrn, lsmdev, lsmtst = convertDataToIndices(lsmtrn, lsmdev, lsmtst)
 
-    return {Datasets.train: lsmtrn, Datasets.dev: lsmdev, Datasets.test: lsmtst, 'weight': weight}
+    return {DataSplit.train: lsmtrn, DataSplit.dev: lsmdev, DataSplit.test: lsmtst, 'weight': weight}
 
 def loadGenspamSVM(restrictLength=300):
-    gsmtrn = loadGenspam(Datasets.train)
-    gsmdev = loadGenspam(Datasets.dev)
-    gsmtst = loadGenspam(Datasets.test)
+    gsmtrn = loadGenspam(DataSplit.train)
+    gsmdev = loadGenspam(DataSplit.dev)
+    gsmtst = loadGenspam(DataSplit.test)
     gsmtrn, gsmdev, gsmtst = splitIntoSentencesAndPad(gsmtrn, gsmdev, gsmtst, restrictLength=restrictLength)
     print('Loaded gen')
 
@@ -56,5 +56,5 @@ def loadGenspamSVM(restrictLength=300):
 
     gsmtrn, gsmdev, gsmtst = convertDataToIndices(gsmtrn, gsmdev, gsmtst)
 
-    return {Datasets.train: gsmtrn, Datasets.dev: gsmdev, Datasets.test: gsmtst, 'weight': weight}
+    return {DataSplit.train: gsmtrn, DataSplit.dev: gsmdev, DataSplit.test: gsmtst, 'weight': weight}
 

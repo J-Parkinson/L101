@@ -1,4 +1,4 @@
-from my_code.helpers.datasets import Datasets
+from my_code.helpers.datasplit import DataSplit
 import pandas as pd
 import re
 
@@ -14,9 +14,9 @@ def parse(data):
     return tokenized
 
 
-def loadGenspam(dataset=Datasets.train):
+def loadGenspam(dataset=DataSplit.train):
     data = {}
-    dataLoad = {Datasets.train: ['train_GEN.ems', 'train_SPAM.ems'], Datasets.dev: ['adapt_GEN.ems', 'adapt_SPAM.ems'], Datasets.test: ['test_GEN.ems', 'test_SPAM.ems']}
+    dataLoad = {DataSplit.train: ['train_GEN.ems', 'train_SPAM.ems'], DataSplit.dev: ['adapt_GEN.ems', 'adapt_SPAM.ems'], DataSplit.test: ['test_GEN.ems', 'test_SPAM.ems']}
     for file in dataLoad[dataset]:
         if 'GEN' in file:
             fileType = 'ham'
@@ -46,12 +46,12 @@ def getStatistics():
     trainham = len(train.loc[train['type'] == 0].index)
     trainfull = trainham + trainspam
 
-    dev = loadGenspam(Datasets.dev)
+    dev = loadGenspam(DataSplit.dev)
     devspam = len(dev.loc[dev['type'] == 1].index)
     devham = len(dev.loc[dev['type'] == 0].index)
     devfull = devham + devspam
 
-    test = loadGenspam(Datasets.test)
+    test = loadGenspam(DataSplit.test)
     testspam = len(test.loc[test['type'] == 1].index)
     testham = len(test.loc[test['type'] == 0].index)
     testfull = testspam + testham

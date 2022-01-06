@@ -1,8 +1,8 @@
 from my_code.load_and_tokenize.loading_helpers import getSplits
-from my_code.helpers.datasets import Datasets
+from my_code.helpers.datasplit import DataSplit
 import pandas as pd
 
-def loadLingspam(dataset=Datasets.train):
+def loadLingspam(dataset=DataSplit.train):
     data = pd.read_csv('../../data/lingspamcollection/messages.csv')
 
     #Note that the ling spam dataset has both subjects and messages - we concatenate for our purposes
@@ -20,12 +20,12 @@ def getStatistics():
     trainham = len(train.loc[train['type'] == 0].index)
     trainfull = trainham + trainspam
 
-    dev = loadLingspam(Datasets.dev)
+    dev = loadLingspam(DataSplit.dev)
     devspam = len(dev.loc[dev['type'] == 1].index)
     devham = len(dev.loc[dev['type'] == 0].index)
     devfull = devham + devspam
 
-    test = loadLingspam(Datasets.test)
+    test = loadLingspam(DataSplit.test)
     testspam = len(test.loc[test['type'] == 1].index)
     testham = len(test.loc[test['type'] == 0].index)
     testfull = testspam + testham

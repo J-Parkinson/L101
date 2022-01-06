@@ -1,5 +1,5 @@
 from my_code.load_and_tokenize.loading_helpers import getSplits
-from my_code.helpers.datasets import Datasets
+from my_code.helpers.datasplit import DataSplit
 import pandas as pd
 import re
 
@@ -9,7 +9,7 @@ def tokenizer(text):
     tokenized = ' '.join([x.replace(' ', '') for x in list(regexToUse.findall(text))])
     return re.sub(' +', ' ', tokenized)
 
-def loadSMSSpam(dataset=Datasets.train):
+def loadSMSSpam(dataset=DataSplit.train):
     spamDataCSV = pd.read_csv("../../data/smsspamcollection/SMSSpamCollection.txt", delimiter='\t', names=["type", "sequence"])
     length = len(spamDataCSV.index)
     splits = getSplits(length, dataset)
@@ -25,12 +25,12 @@ def getStatistics():
     trainham = len(train.loc[train['type'] == 'ham'].index)
     trainfull = trainham + trainspam
 
-    dev = loadSMSSpam(Datasets.dev)
+    dev = loadSMSSpam(DataSplit.dev)
     devspam = len(dev.loc[dev['type'] == 'spam'].index)
     devham = len(dev.loc[dev['type'] == 'ham'].index)
     devfull = devham + devspam
 
-    test = loadSMSSpam(Datasets.test)
+    test = loadSMSSpam(DataSplit.test)
     testspam = len(test.loc[test['type'] == 'spam'].index)
     testham = len(test.loc[test['type'] == 'ham'].index)
     testfull = testspam + testham

@@ -1,11 +1,11 @@
 from sklearn.model_selection import GridSearchCV
 from sklearn.svm import SVC
 import numpy as np
-from my_code.helpers.datasets import Datasets
+from my_code.helpers.datasplit import DataSplit
 
 def determineHyperparams(data):
     params = {'C': np.logspace(-2, 3, 6), 'gamma': np.logspace(-7, 1, 9)}
-    dataToUse = data[Datasets.dev]
+    dataToUse = data[DataSplit.dev]
     outputs = list(dataToUse['type'].to_numpy())
     sequences = list(dataToUse['sequence'].to_numpy())
     grid = GridSearchCV(SVC(), param_grid=params)
